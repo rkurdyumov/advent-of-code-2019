@@ -8,8 +8,10 @@ OPCODE_MULTIPLY = 2
 OPCODE_HALT = 99
 
 def run_intcode_program(ints, noun=None, verb=None):
-    ints[1] = ints[1] if noun is None else noun
-    ints[2] = ints[2] if verb is None else verb
+    if noun is not None:
+        ints[1] = noun
+    if verb is not None:
+        ints[2] = verb
     i = 0
     while ints[i] != OPCODE_HALT:
         if ints[i] == 1:
