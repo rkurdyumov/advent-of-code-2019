@@ -22,7 +22,7 @@ def get_point_steps(segments):
             x += DX[direction]
             y += DY[direction]
             steps += 1
-            if (x,y ) not in point_steps:
+            if (x, y) not in point_steps:
                 point_steps[(x, y)] = steps
     return point_steps
 
@@ -46,9 +46,10 @@ def get_fewest_steps(wire1, wire2):
     return min([steps[0] + steps[1] for steps in point_steps.values()])
 
 def main():
-    wire1, wire2 = open("day03.txt").read().splitlines()
-    print(get_manhattan_distance(wire1, wire2))
-    print(get_fewest_steps(wire1, wire2))
+    with open("day03.txt") as input_file:
+        wire1, wire2 = input_file.read().splitlines()
+        print(get_manhattan_distance(wire1, wire2))
+        print(get_fewest_steps(wire1, wire2))
 
 if __name__ == '__main__':
     main()
