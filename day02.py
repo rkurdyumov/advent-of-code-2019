@@ -14,9 +14,9 @@ def run_intcode_program(ints, noun=None, verb=None):
         ints[2] = verb
     i = 0
     while ints[i] != OPCODE_HALT:
-        if ints[i] == 1:
+        if ints[i] == OPCODE_ADD:
             ints[ints[i+3]] = ints[ints[i+1]] + ints[ints[i+2]]
-        elif ints[i] == 2:
+        elif ints[i] == OPCODE_MULTIPLY:
             ints[ints[i+3]] = ints[ints[i+1]] * ints[ints[i+2]]
         else:
             raise ValueError("{} has invalid opcode {} at position {}.".format(
