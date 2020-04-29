@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 import unittest
 
 def get_point_steps(segments):

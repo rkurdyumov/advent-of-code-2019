@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 from collections import Counter
 import unittest
 
@@ -15,15 +13,17 @@ def is_valid_password(password, require_double_group=False):
         return any(count > 1 for count in digit_counts.values())
 
 def main():
-    num_passwords1 = 0
-    num_passwords2 = 0
-    for num in range(193651, 649729+1):
+    with open("day04.txt") as input_file:
+        lower, upper  = [int(x) for x in input_file.read().split("-")]
+    num_passwords = 0
+    num_passwords_strict = 0
+    for num in range(lower, upper+1):
         if is_valid_password(num):
-            num_passwords1 += 1
+            num_passwords += 1
         if is_valid_password(num, require_double_group=True):
-            num_passwords2 += 1
-    print("Part one different passwords: {}".format(num_passwords1))
-    print("Part two different passwords: {}".format(num_passwords2))
+            num_passwords_strict += 1
+    print("Part one passwords: {}".format(num_passwords))
+    print("Part two passwords: {}".format(num_passwords_strict))
 
 if __name__ == '__main__':
     main()

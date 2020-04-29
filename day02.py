@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 from itertools import product
 import unittest
 
