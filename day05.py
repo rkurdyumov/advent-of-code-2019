@@ -99,7 +99,7 @@ class TestRunIntcode(unittest.TestCase):
         self.assertRaises(ValueError, run_intcode, [10001,0,2,8,99])
         # Invalid mode.
         self.assertRaises(ValueError, run_intcode, [201,0,2,0,99])
-        # Halt instruction cannot have params..
+        # Halt instruction cannot have params.
         self.assertRaises(ValueError, run_intcode, [199,99])
 
     def test_run_intcode_compare(self):
