@@ -75,8 +75,8 @@ def main():
     with open("day05.txt") as input_file:
         ints = [int(x) for x in input_file.read().split(",")]
 
-    print("Part 1 output: {}".format(run_intcode(ints.copy(), 1)))
-    print("Part 2 output: {}".format(run_intcode(ints.copy(), 5)))
+    print("Part 1 output: {}".format(run_intcode(ints.copy(), 1)[-1]))
+    print("Part 2 output: {}".format(run_intcode(ints.copy(), 5)[0]))
 
 if __name__ == '__main__':
     main()
