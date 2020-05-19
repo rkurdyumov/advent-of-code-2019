@@ -1,4 +1,6 @@
+from collections import defaultdict
 from collections import namedtuple
+from enum import IntEnum
 import unittest
 
 class IntcodeComputer:
@@ -12,16 +14,21 @@ class IntcodeComputer:
         6: Opcode("JUMP_IF_FALSE", 2, 0),
         7: Opcode("LESS_THAN", 3, 1),
         8: Opcode("EQUALS", 3, 1),
-        9: Opcode("ADJUST_RELATIVE_BASE", 1, 0),
+        9: Opcode("ADJUST_BASE", 1, 0),
         99: Opcode("HALT", 0, 0)
     }
 
+    class Mode(IntEnum):
+        POSITION = 0
+        IMMEDIATE = 1
+        RELATIVE = 2
+
     def __init__(self, ints, wait_for_input=False):
-       self.ints = ints + [0] * 10000
-       self.ip = 0
-       self.relative_base = 0
-       self.wait_for_input = wait_for_input
-       self.done = False
+        self.ints = defaultdict(int, enumerate(ints))
+        self.ip = 0
+        self.base = 0
+        self.wait_for_input = wait_for_input
+        self.done = False
 
     def is_done(self):
         return self.done
@@ -33,20 +40,21 @@ class IntcodeComputer:
             op = self._OPCODES[opcode]
             pos = []
             for j, mode in enumerate(modes):
-                if mode == 0: # Position mode.
-                    pos.append(self.ints[self.ip+1+j])
-                elif mode == 1: # Immediate mode.
-                    pos.append(self.ip+1+j)
-                else: # mode == 2.  Relative mode.
-                    pos.append(self.relative_base + self.ints[self.ip+1+j])
+                if mode == self.Mode.POSITION:
+                    pos.append(self.ints[self.ip + 1 + j])
+                elif mode == self.Mode.IMMEDIATE:
+                    pos.append(self.ip + 1 + j)
+                elif mode == self.Mode.RELATIVE:
+                    pos.append(self.base + self.ints[self.ip + 1 + j])
             if verbose:
-                i_max = self.ip + len(pos)
+                i_max = self.ip + len(modes)
                 print("Intcode: {}\n"
-                      "ip: {}, ins: {}, rb: {}, inputs: {}, op: {}, "
-                       "modes: {}, pos: {} val: {}\noutput: {}"
-                      .format(self.ints[0:i_max+1], self.ip, self.ints[self.ip],                              self.relative_base, inputs, op.name, modes, pos,
-                              [self.ints[i] for i in pos], outputs))
-                      #modes, pos, [self.ints[i] for i in pos]))
+                      "ip: {}, ins: {}, base: {}, inputs: {}, op: {}, "
+                       "modes: {}, pos: {} val: {}\n"
+                       "output: {}\n-----"
+                      .format(list(self.ints.values())[0:i_max+1], self.ip,
+                              self.ints[self.ip], self.base, inputs, op.name,
+                              modes, pos, [self.ints[i] for i in pos], outputs))
             if op.name == "HALT":
                 self.done = True
                 break
@@ -81,11 +89,8 @@ class IntcodeComputer:
                     self.ints[pos[2]] = 1
                 else:
                     self.ints[pos[2]] = 0
-            elif op.name == "ADJUST_RELATIVE_BASE":
-                self.relative_base += self.ints[pos[0]]
-            else:
-                raise ValueError("{} has invalid opcode {} at ip = {}.".format(
-                                 self.ints[0:self.ip], self.ints[ip], self.ip))
+            elif op.name == "ADJUST_BASE":
+                self.base += self.ints[pos[0]]
             self.ip += op.params + 1
         if outputs:
             return outputs if len(outputs) > 1 else outputs[0]
@@ -101,10 +106,11 @@ class IntcodeComputer:
         while len(modes) < op.params:
             modes.append(digits % 10)
             digits //= 10
-        if digits != 0 or any(mode > 2 for mode in modes):
+        if digits != 0 or any(mode > self.Mode.RELATIVE for mode in modes):
             raise ValueError("Instruction {} has invalid parameter modes."
                              .format(instruction))
-        if op.writes and any(mode == 1 for mode in modes[-op.writes:]):
+        if op.writes and any(mode == self.Mode.IMMEDIATE
+                             for mode in modes[-op.writes:]):
             raise ValueError("Instruction {} has write param immediate mode."
                              .format(instruction))
         return opcode, modes
@@ -120,7 +126,7 @@ class TestIntcodeComputer(unittest.TestCase):
 
     def test_intcode_invalid(self):
         # Invalid opcode.
-        self.assertRaises(ValueError, IntcodeComputer([0,0,99]).run)
+        self.assertRaises(ValueError, IntcodeComputer([1055,0,99]).run)
         # Missing input for input instruction.
         self.assertRaises(ValueError, IntcodeComputer([3,0,99]).run)
         # Input instruction cannot write in immediate mode.
