@@ -2,7 +2,7 @@ from collections import namedtuple
 import unittest
 
 class IntcodeComputer:
-    Opcode = namedtuple("Opcode", ("name", "params", "outputs"))
+    Opcode = namedtuple("Opcode", ("name", "params", "writes"))
     _OPCODES = {
         1: Opcode("ADD", 3, 1),
         2: Opcode("MULTIPLY", 3, 1),
@@ -12,12 +12,14 @@ class IntcodeComputer:
         6: Opcode("JUMP_IF_FALSE", 2, 0),
         7: Opcode("LESS_THAN", 3, 1),
         8: Opcode("EQUALS", 3, 1),
+        9: Opcode("ADJUST_RELATIVE_BASE", 1, 0),
         99: Opcode("HALT", 0, 0)
     }
 
     def __init__(self, ints, wait_for_input=False):
-       self.ints = ints
+       self.ints = ints + [0] * 10000
        self.ip = 0
+       self.relative_base = 0
        self.wait_for_input = wait_for_input
        self.done = False
 
@@ -25,18 +27,26 @@ class IntcodeComputer:
         return self.done
 
     def run(self, inputs=[], verbose=False):
-        output = None
+        outputs = []
         while True: 
             opcode, modes = self._parse_instruction(self.ints[self.ip])
             op = self._OPCODES[opcode]
-            pos = [self.ints[self.ip+1+j] if mode == 0 else self.ip+1+j 
-                   for j, mode in enumerate(modes)]
+            pos = []
+            for j, mode in enumerate(modes):
+                if mode == 0: # Position mode.
+                    pos.append(self.ints[self.ip+1+j])
+                elif mode == 1: # Immediate mode.
+                    pos.append(self.ip+1+j)
+                else: # mode == 2.  Relative mode.
+                    pos.append(self.relative_base + self.ints[self.ip+1+j])
             if verbose:
-                i_max = max(pos)+1 if pos else self.ip+1
+                i_max = self.ip + len(pos)
                 print("Intcode: {}\n"
-                      "ip: {}, inputs: {}, op: {}, modes: {}, pos: {} val: {}"
-                      .format(self.ints[0:i_max], self.ip, inputs, op.name,
-                      modes, pos, [self.ints[i] for i in pos]))
+                      "ip: {}, ins: {}, rb: {}, inputs: {}, op: {}, "
+                       "modes: {}, pos: {} val: {}\noutput: {}"
+                      .format(self.ints[0:i_max+1], self.ip, self.ints[self.ip],                              self.relative_base, inputs, op.name, modes, pos,
+                              [self.ints[i] for i in pos], outputs))
+                      #modes, pos, [self.ints[i] for i in pos]))
             if op.name == "HALT":
                 self.done = True
                 break
@@ -52,7 +62,7 @@ class IntcodeComputer:
                         raise ValueError("Input instruction missing input.")
                 self.ints[pos[0]] = inputs.pop(0)
             elif op.name == "OUTPUT":
-                output = self.ints[pos[0]]
+                outputs.append(self.ints[pos[0]])
             elif op.name == "JUMP_IF_TRUE":
                 if (self.ints[pos[0]] != 0):
                     self.ip = self.ints[pos[1]]
@@ -71,11 +81,14 @@ class IntcodeComputer:
                     self.ints[pos[2]] = 1
                 else:
                     self.ints[pos[2]] = 0
+            elif op.name == "ADJUST_RELATIVE_BASE":
+                self.relative_base += self.ints[pos[0]]
             else:
                 raise ValueError("{} has invalid opcode {} at ip = {}.".format(
                                  self.ints[0:self.ip], self.ints[ip], self.ip))
             self.ip += op.params + 1
-        return output
+        if outputs:
+            return outputs if len(outputs) > 1 else outputs[0]
 
     def _parse_instruction(self, instruction):
         opcode = instruction % 100
@@ -88,18 +101,18 @@ class IntcodeComputer:
         while len(modes) < op.params:
             modes.append(digits % 10)
             digits //= 10
-        if digits != 0 or any(mode > 1 for mode in modes):
+        if digits != 0 or any(mode > 2 for mode in modes):
             raise ValueError("Instruction {} has invalid parameter modes."
                              .format(instruction))
-        if op.outputs and any(mode > 0 for mode in modes[-op.outputs:]):
-            raise ValueError("Instruction {} has invalid output param mode."
+        if op.writes and any(mode == 1 for mode in modes[-op.writes:]):
+            raise ValueError("Instruction {} has write param immediate mode."
                              .format(instruction))
         return opcode, modes
 
 class TestIntcodeComputer(unittest.TestCase):
     def test_intcode_basic(self):
-        self.assertEqual(IntcodeComputer([99]).run(), None)
-        self.assertEqual(IntcodeComputer([1002,4,3,4,33]).run(), None)
+        self.assertIs(IntcodeComputer([99]).run(), None)
+        self.assertIs(IntcodeComputer([1002,4,3,4,33]).run(), None)
         self.assertEqual(IntcodeComputer([1101,2,3,0,4,0,99]).run(), 5)
         self.assertEqual(IntcodeComputer([104,5,99]).run(), 5)
         self.assertEqual(IntcodeComputer([102,10,0,0,4,0,99]).run(), 1020)
@@ -111,11 +124,11 @@ class TestIntcodeComputer(unittest.TestCase):
         # Missing input for input instruction.
         self.assertRaises(ValueError, IntcodeComputer([3,0,99]).run)
         # Input instruction cannot write in immediate mode.
-        self.assertRaises(ValueError, IntcodeComputer([103,0,99]).run)
+        self.assertRaises(ValueError, IntcodeComputer([103,0,99]).run, [5])
         # Add instruction cannot write in immediate mode.
         self.assertRaises(ValueError, IntcodeComputer([10001,0,2,8,99]).run)
         # Invalid mode.
-        self.assertRaises(ValueError, IntcodeComputer([201,0,2,0,99]).run)
+        self.assertRaises(ValueError, IntcodeComputer([301,0,2,0,99]).run)
         # Halt instruction cannot have params.
         self.assertRaises(ValueError, IntcodeComputer([199,99]).run)
 
@@ -139,13 +152,13 @@ class TestIntcodeComputer(unittest.TestCase):
         self.assertTrue(IntcodeComputer(
             [3,3,1105,-1,9,1101,0,0,12,4,12,99,1]).run([1]))
 
-    def test_intcode_is_done(self):
+    def test_intcode_wait_for_input(self):
         c = IntcodeComputer([3,0,99], wait_for_input=True)
         self.assertFalse(c.is_done())
-        self.assertEqual(c.run(), None) # Wait for input.
-        self.assertFalse(c.is_done())
-        self.assertEqual(c.run([5]), None) # Received input.
-        self.assertTrue(c.is_done())
+        c.run()
+        self.assertFalse(c.is_done()) # Wait for input.
+        c.run([5])
+        self.assertTrue(c.is_done()) # Received input.
 
     def test_intcode_large(self):
         ints = [3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,
@@ -154,4 +167,16 @@ class TestIntcodeComputer(unittest.TestCase):
         self.assertEqual(IntcodeComputer(ints.copy()).run([7]), 999)
         self.assertEqual(IntcodeComputer(ints.copy()).run([8]), 1000)
         self.assertEqual(IntcodeComputer(ints.copy()).run([9]), 1001)
+
+    def test_intcode_relative_base(self):
+        quine = [109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99]
+        self.assertEqual(IntcodeComputer(quine).run(), quine)
+
+    def test_intcode_memory(self):
+        digits16 = [1102,34915192,34915192,7,4,7,99,0]
+        self.assertEqual(len(str(IntcodeComputer(digits16).run())), 16)
+
+    def test_intcode_large_number(self):
+        large_num = [104,1125899906842624,99]
+        self.assertEqual(IntcodeComputer(large_num).run(), large_num[1])
 
