@@ -92,8 +92,7 @@ class IntcodeComputer:
             elif op.name == "ADJUST_BASE":
                 self.base += self.ints[pos[0]]
             self.ip += op.params + 1
-        if outputs:
-            return outputs if len(outputs) > 1 else outputs[0]
+        return outputs[0] if len(outputs) == 1 else outputs
 
     def _parse_instruction(self, instruction):
         opcode = instruction % 100
@@ -117,8 +116,8 @@ class IntcodeComputer:
 
 class TestIntcodeComputer(unittest.TestCase):
     def test_intcode_basic(self):
-        self.assertIs(IntcodeComputer([99]).run(), None)
-        self.assertIs(IntcodeComputer([1002,4,3,4,33]).run(), None)
+        self.assertEqual(IntcodeComputer([99]).run(), [])
+        self.assertEqual(IntcodeComputer([1002,4,3,4,33]).run(), [])
         self.assertEqual(IntcodeComputer([1101,2,3,0,4,0,99]).run(), 5)
         self.assertEqual(IntcodeComputer([104,5,99]).run(), 5)
         self.assertEqual(IntcodeComputer([102,10,0,0,4,0,99]).run(), 1020)
