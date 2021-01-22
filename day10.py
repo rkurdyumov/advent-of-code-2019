@@ -1,5 +1,5 @@
 import unittest
-from math import atan2, pi
+from math import atan2, dist, pi
 from collections import defaultdict
 
 # Returns a list of (x, y) coords for each asteroid.
@@ -8,48 +8,29 @@ def get_asteroid_coords(asteroid_map):
     cols = range(len(asteroid_map[0]))
     return [(x, y) for y in rows for x in cols if asteroid_map[y][x] == "#"]
 
+def get_angle(start, end):
+    # We have +x right, +y down and need +x up, +y right (90 deg CCW rotation):
+    # => [0, -1; 1, 0] * [dx; dy] = [-dy; dx]
+    # See https://en.wikipedia.org/wiki/Rotation_matrix#Direction
+    return atan2(end[0] - start[0], -(end[1] - start[1])) % (2*pi)
+
+def get_num_detections(asteroids, start):
+    return(len(set(get_angle(start, b) for b in asteroids if b != start)))
+
 def get_most_detected(asteroid_map):
     asteroids = get_asteroid_coords(asteroid_map)
-    # { asteroid: set of unique angles }
-    detected_angles = {asteroid: set() for asteroid in asteroids}
-
-    most_so_far = 0
-    detections = {} # { coords: detections }
-    for start in asteroids:
-        for end in [x for x in asteroids if x != start]:
-            angle = atan2(end[1] - start[1], end[0] - start[0])
-            detected_angles[start].add(angle)
-        detections[start] = len(detected_angles[start])
-    max_coords = max(detections, key=detections.get)
-    return max_coords, detections[max_coords]
+    all_detections = [get_num_detections(asteroids, a) for a in asteroids]
+    i, max_detections = max(enumerate(all_detections), key=lambda d: d[1])
+    return asteroids[i], max_detections
 
 def get_vaporized(asteroid_map, station):
-    asteroids = get_asteroid_coords(asteroid_map)
-    vaporized = []
-    angle_map = defaultdict(list) # [ { angle: [distance, (row, col)] } ]
-    for other in [x for x in asteroids if x != station]:
-        dx = other[0] - station[0]
-        dy = other[1] - station[1]
-        # dy grows as we move in -y (since y=0 is at the top), so flip sign
-        # angle is counterclockwise from +x axis, so:
-        #  1) subtract pi/2 to get counterclockwise angle from +y axis
-        #  1) subtract angle from 2*pi to get clockwise angle from +y axis
-        #  3) take modulus to wrap angle to [0, 2*pi], so +y axis is 0
-        angle = (2*pi - (atan2(-dy, dx) - pi/2)) % (2*pi)
-        # Store Manhattan distance, a simple way to find closer asteroids along
-        # the same angle from the station.
-        distance = abs(dx) + abs(dy)
-        angle_map[angle].append((distance, other))
-
-    while angle_map:
-        # Sort so we move through angles clockwise from +y axis.
-        for angle, value in sorted(angle_map.items()):
-            distance, coords = min(angle_map[angle]) # min distance coords
-            angle_map[angle].remove((distance, coords))
-            vaporized.append(coords)
-        angle_map = {key: val for key, val in angle_map.items() if len(val)}
-
-    return vaporized
+    rest = [a for a in get_asteroid_coords(asteroid_map) if a != station]
+    rest.sort(key=lambda asteroid: dist(station, asteroid))
+    # For each asteroid, find how many block its view of the station.
+    num_blocking = {a: sum(get_angle(station, a) == get_angle(station, b)
+                    for b in rest[:i]) for i, a in enumerate(rest)}
+    # Return all unblocked asteroids sorted by angle, then more blocked.
+    return sorted(rest, key=lambda a: (num_blocking[a], get_angle(station, a)))
 
 def main():
     with open("day10.txt") as input_file:
