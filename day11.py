@@ -8,8 +8,7 @@ dxy = [
     [0, -1], # down
     [-1, 0]] # left
 
-def update(panels, coords, direction, color, turn_right):
-    panels[tuple(coords)] = color # white = 1
+def update(coords, direction, turn_right):
     direction = (direction + (1 if turn_right else -1)) % 4
     coords = [coords[0] + dxy[direction][0], coords[1] + dxy[direction][1]]
     return coords, direction
@@ -18,11 +17,12 @@ def get_painted_panels(ints, initial_color):
     panels = defaultdict(int) # { (x, y): color }
     computer = IntcodeComputer(ints, wait_for_input=True)
     coords = [0, 0]
-    direction = 0
-    panels[tuple([0,0])] = initial_color
+    direction = 0 # initially point up
+    panels[tuple(coords)] = initial_color
     while not computer.is_done():
         color, turn = computer.run(inputs=[panels[tuple(coords)]])
-        coords, direction = update(panels, coords, direction, color, turn)
+        panels[tuple(coords)] = color # white = 1
+        coords, direction = update(coords, direction, turn)
     return panels
 
 def print_panels(panels):

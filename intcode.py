@@ -25,8 +25,8 @@ class IntcodeComputer:
 
     def __init__(self, ints, wait_for_input=False):
         self.ints = defaultdict(int, enumerate(ints))
-        self.ip = 0
-        self.base = 0
+        self.ip = 0 # Instruction pointer.
+        self.base = 0 # Used in RELATIVE mode.
         self.wait_for_input = wait_for_input
         self.done = False
 
@@ -35,7 +35,7 @@ class IntcodeComputer:
 
     def run(self, inputs=[], verbose=False):
         outputs = []
-        while True: 
+        while True:
             opcode, modes = self._parse_instruction(self.ints[self.ip])
             op = self._OPCODES[opcode]
             pos = []
