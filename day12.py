@@ -7,8 +7,8 @@ def move(positions, velocities):
     for i in range(len(new_velocities)):
         others = list(positions)
         value = others.pop(i)
-        delta = sum([1 if x > value else -1 if x < value else 0 for x in others])
-        new_velocities[i] = velocities[i] + delta
+        dv = sum([1 if x > value else -1 if x < value else 0 for x in others])
+        new_velocities[i] = velocities[i] + dv
     new_positions = [x + y for x, y in zip(positions, new_velocities)]
     return new_positions, new_velocities
 
@@ -23,12 +23,12 @@ def total_energy(positions, steps):
     v = [[0]*len(positions[0])]*len(positions)
     for _ in range(steps):
         p, v = move_3d(p, v)
-    p_abs = [list(map(abs, row)) for row in p]
-    v_abs = [list(map(abs, row)) for row in v]
-    potential_energies = [sum(x) for x in zip(*p_abs)]
-    kinetic_energies = [sum(x) for x in zip(*v_abs)]
-    total_energies = [x*y for x, y in zip(potential_energies, kinetic_energies)]
-    return sum(total_energies)
+    p_abs = [[abs(x) for x in row] for row in p]
+    v_abs = [[abs(x) for x in row] for row in v]
+    pe = [sum(x) for x in zip(*p_abs)]
+    ke = [sum(x) for x in zip(*v_abs)]
+    total = [x*y for x, y in zip(pe, ke)]
+    return sum(total)
 
 def steps_to_repeat(positions, velocities):
     steps = 0
@@ -48,14 +48,16 @@ def steps_to_repeat_3d(positions):
     steps_z = steps_to_repeat(positions[2], velocities[2])
     return lcm(steps_x, steps_y, steps_z)
 
-
 def main():
     with open("day12.txt") as input_file:
-        positions = [[int(x) for x in re.findall(r'-?\d+', row)] for row in input_file.readlines()]
+        positions = [[int(x) for x in re.findall(r'-?\d+', row)]
+                     for row in input_file.readlines()]
+    # Transpose so first row is every moon's x-coordinate, etc.
     p = list(map(list, zip(*positions)))
-    print(p)
+
     energy = total_energy(p, steps=1000)
     print(f"Part one solution: {energy}")
+
     steps = steps_to_repeat_3d(p)
     print(f"Part two solution: {steps}")
 
@@ -64,20 +66,20 @@ if __name__== "__main__":
 
 class MoonMotionTest(unittest.TestCase):
     def test_move_3d(self):
-        positions = [
+        p = [
             [-1, 2, 4, 3],
             [0, -10, -8, 5],
             [2, -7, 8, -1]]
-        velocities = [[0]*len(positions[0])]*len(positions)
-        p, v = move_3d(positions, velocities)
-        self.assertEqual(v,[
-            [3, 1, -3, -1],
-            [-1, 3, 1, -3],
-            [-1, 3, -3, 1]])
+        v = [[0]*len(p[0])]*len(p)
+        p, v = move_3d(p, v)
         self.assertEqual(p, [
             [2, 3, 1, 2],
             [-1, -7, -7, 2],
             [1, -4, 5, 0]])
+        self.assertEqual(v,[
+            [3, 1, -3, -1],
+            [-1, 3, 1, -3],
+            [-1, 3, -3, 1]])
 
     def test_move_3d_multiple(self):
         p = [
